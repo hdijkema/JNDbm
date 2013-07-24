@@ -1,0 +1,17 @@
+Release 2.0
+-----------
+2011-02 New Setup using H2 as a backend. Still in beta.
+
+Release 1.2
+-----------
+* Added array support in decoder/encoder classes
+
+Release 1.1
+-----------
+* Changed from binary to byte (Ascii/utf-8) version of DBM
+* Fixed a bug in NDbmEncoder DataOutputStream had to be NDbmDataOutputStream.
+
+Release 1.0
+-----------
+* Binary DBM version.
+
