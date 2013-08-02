@@ -151,7 +151,7 @@ public class NDbm2 extends NDbmEncDec {
 				throw new NDbmException(e);
 			}
 		} else {
-			_beginCount-=1;
+			//_beginCount-=1; That's too much
 		}
 	}
 	
