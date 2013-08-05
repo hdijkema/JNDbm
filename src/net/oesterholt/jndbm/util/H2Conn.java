@@ -7,7 +7,6 @@ import java.sql.SQLException;
 import java.util.Hashtable;
 
 import net.oesterholt.jndbm.util.IConn;
-
 import net.oesterholt.jndbm2.exceptions.NDbmAlreadyInUseException;
 import net.oesterholt.jndbm2.exceptions.NDbmException;
 
@@ -37,7 +36,12 @@ public class H2Conn extends IConn {
 	}
 	
 	public Connection getConn() throws NDbmException {
-		Connection conn=newConn();
+		//Connection conn=newConn();
+		try {
+			initConn();
+		} catch (Exception e) {
+			throw new NDbmException(e);
+		}
 		return conn;
 	}
 	

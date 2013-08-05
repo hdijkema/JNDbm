@@ -7,6 +7,7 @@ import java.io.ObjectOutputStream;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.Date;
@@ -29,25 +30,45 @@ public class NDbm2 extends NDbmEncDec {
 	
 	private IConn _conn=null;
 	private int   _MAX_TRANSACTION_DEPTH=20;
-	private static Hashtable<File,NDbm2> _existingDbms=new Hashtable<File,NDbm2>();;
+	private static Hashtable<File,NDbm2> _existingDbms = new Hashtable<File,NDbm2>();;
+	private File _base;
+	private boolean _readonly;
 
 	//////////////////////////////////////////////////////////////////////////
 	// Constructing
 	//////////////////////////////////////////////////////////////////////////
 
+	/**
+	 * This function opens a database only and only if it is not already opened.
+	 * However, for different threads, it keeps different connections.
+	 * You *must* call close on the NDbm2 handle in order to clean up your 
+	 * connection, otherwise it will stay open in memory.
+	 * 
+	 * @param base
+	 * @param readonly
+	 * @return
+	 * @throws NDbmException
+	 */
 	static public NDbm2 openNDbm(File base, boolean readonly) throws NDbmException {
 		NDbm2 db=_existingDbms.get(base);
 		if (db==null) {
 			db=new NDbm2(base,readonly);
 			_existingDbms.put(base, db);
+		} else {
+			db = db.copy();
 		}
 		return db;
 	}
 	
-	
 	protected NDbm2(File base,boolean ro) throws NDbmException {
-		_conn=new H2Conn(base,ro);
+		_conn = new H2Conn(base, ro);
+		_base = base;
+		_readonly = ro;
 		initDb();
+	}
+	
+	protected NDbm2 copy() throws NDbmException {
+		return new NDbm2(_base, _readonly);
 	}
 	
 	public static void removeDb(File _base) {
@@ -63,29 +84,35 @@ public class NDbm2 extends NDbmEncDec {
 	}
 	
 	public void close() throws NDbmException {
-		// does nothing. On finalization, the connection will be closed
+		// Close will be executed on finalization
 	}
 	
 	protected void finalize() throws Throwable {
-		_mergeBin.close();
-		_getBin.close();
-		_mergeBlob.close();
-		_getBlob.close();
-		_mergeInt.close();
-		_getInt.close();
-		_mergeLong.close();
-		_getLong.close();
-		_mergeFloat.close();
-		_getFloat.close();
-		_mergeDouble.close();
-		_getDouble.close();
-		_mergeString.close();
-		_getString.close();
-		_mergeBoolean.close();
-		_getBoolean.close();
-		_getkeys.close();
-		_delKey.close();
-		_conn.closeConn();
+		try {
+			_mergeBin.close();
+			_getBin.close();
+			_mergeBlob.close();
+			_getBlob.close();
+			_mergeInt.close();
+			_getInt.close();
+			_mergeLong.close();
+			_getLong.close();
+			_mergeFloat.close();
+			_getFloat.close();
+			_mergeDouble.close();
+			_getDouble.close();
+			_mergeString.close();
+			_getString.close();
+			_mergeBoolean.close();
+			_getBoolean.close();
+			_getkeys.close();
+			_delKey.close();
+			_conn.closeConn();
+		} catch (SQLException e) {
+			throw new NDbmException(e);
+		} catch (Exception e) {
+			throw new NDbmException(e);
+		}
 		super.finalize();
 	}	
 	
