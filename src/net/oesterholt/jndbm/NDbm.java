@@ -290,11 +290,10 @@ public class NDbm extends NDbmEncDec {
 		logger = logProvider.getLogger(NDbm.class);
 	}
 
-	@SuppressWarnings("unchecked")
-	public static NDbmLogger getLogger(Class c) {
+	public static NDbmLogger getLogger(Class<?> c) {
 		if (logProvider == null) {
 			logProvider = new NDbmLogProvider() {
-				public NDbmLogger getLogger(Class c) {
+				public NDbmLogger getLogger(Class<?> c) {
 					return NDbmLogger.getLogger(c);
 				}
 			};

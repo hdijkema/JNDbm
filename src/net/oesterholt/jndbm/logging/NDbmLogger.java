@@ -2,8 +2,7 @@ package net.oesterholt.jndbm.logging;
 
 public class NDbmLogger {
 	
-	@SuppressWarnings("unchecked")
-	public static NDbmLogger getLogger(Class c) {
+	public static NDbmLogger getLogger(Class<?> c) {
 		final String name=c.getName();
 		return new NDbmLogger(name);
 	}
