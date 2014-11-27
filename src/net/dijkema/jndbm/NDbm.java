@@ -4,7 +4,7 @@ package net.dijkema.jndbm;
  * Back to revision 170. This version works. The next version doesn't.
  * However, this version contains still a bug. Moving this version to HEAD
  */
-
+ 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
