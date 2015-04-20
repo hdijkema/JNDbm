@@ -2,7 +2,6 @@ package net.dijkema.jndbm;
 
 import java.io.File;
 import java.io.InputStream;
-import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -21,9 +20,9 @@ import net.dijkema.jndbm.streams.NDbmByteArrayInputStream;
 import net.dijkema.jndbm.streams.NDbmByteArrayOutputStream;
 import net.dijkema.jndbm.streams.NDbmDataInputStream;
 import net.dijkema.jndbm.streams.NDbmDataOutputStream;
-import net.dijkema.jndbm.util.DerbyConn;
 import net.dijkema.jndbm.util.H2Conn;
 import net.dijkema.jndbm.util.IConn;
+import net.dijkema.jndbm.util.SQLiteConn;
 import net.dijkema.jndbm2.exceptions.NDbmException;
 
 public class NDbm2 extends NDbmEncDec {
@@ -33,6 +32,9 @@ public class NDbm2 extends NDbmEncDec {
 	private static Hashtable<File,NDbm2> _existingDbms = new Hashtable<File,NDbm2>();;
 	private File _base;
 	private boolean _readonly;
+	private boolean _h2;
+	
+	private static boolean _h2type = false;
 
 	//////////////////////////////////////////////////////////////////////////
 	// Constructing
@@ -50,25 +52,40 @@ public class NDbm2 extends NDbmEncDec {
 	 * @throws NDbmException
 	 */
 	static public NDbm2 openNDbm(File base, boolean readonly) throws NDbmException {
-		NDbm2 db=_existingDbms.get(base);
+		File dbbase = new File(base.getAbsolutePath()+((_h2type) ? ".h2" : ".sqlite"));
+		NDbm2 db=_existingDbms.get(dbbase);
 		if (db==null) {
-			db=new NDbm2(base,readonly);
-			_existingDbms.put(base, db);
+			db=new NDbm2(base, readonly, _h2type);
+			_existingDbms.put(dbbase, db);
 		} else {
 			db = db.copy();
 		}
 		return db;
 	}
 	
-	protected NDbm2(File base,boolean ro) throws NDbmException {
-		_conn = new H2Conn(base, ro);
+	static public void setH2() {
+		_h2type = true;
+	}
+	
+	static public void setSQLite() {
+		_h2type = false;
+	}
+	
+	
+	protected NDbm2(File base,boolean ro, boolean h2) throws NDbmException {
+		_h2 = h2;
+		if (h2) {
+			_conn = new H2Conn(base, ro);
+		} else {
+			_conn = new SQLiteConn(base, ro);
+		}
 		_base = base;
 		_readonly = ro;
 		initDb();
 	}
 	
 	protected NDbm2 copy() throws NDbmException {
-		return new NDbm2(_base, _readonly);
+		return new NDbm2(_base, _readonly, _h2);
 	}
 	
 	public static void removeDb(File _base) {
@@ -121,15 +138,15 @@ public class NDbm2 extends NDbmEncDec {
 	// //////////////////////////////////////////////////////////////////////////////////
 	
 	static public String infoVersion() {
-		return "2.01";				// Version of the library
+		return "2.02";				// Version of the library
 	}
 
 	static public String infoWebSite() {
-		return "http://jndbm.sourceforge.net";
+		return "http://github.com/hdijkema/JNDbm";
 	}
 
 	static public String infoLicense() {
-		return "LGPL (c) 2009-2011 Hans Dijkema";
+		return "LGPL (c) 2009-2015 Hans Dijkema";
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -655,7 +672,7 @@ public class NDbm2 extends NDbmEncDec {
 	
 	private void initDb() throws NDbmException {
 		try {
-			Connection conn=_conn.getConn();
+ 			Connection conn=_conn.getConn();
 			Statement stmt=conn.createStatement();
 			try {
 				stmt.execute("create table if not exists dbm (" +
@@ -683,34 +700,37 @@ public class NDbm2 extends NDbmEncDec {
 			_delKey=conn.prepareStatement("delete from dbm where key=?");
 			_getkeys=conn.prepareStatement("select key from dbm");
 
-			_mergeBin=conn.prepareStatement("merge into dbm (key,_bin) values (?,?)");
+			String merge = "merge into ";
+			if (_conn.driver().equals("sqlite")) { merge = "insert or replace into "; } 
+			
+			_mergeBin=conn.prepareStatement(merge + " dbm (key,_bin) values (?,?)");
 			_getBin=conn.prepareStatement("select _bin as value from dbm where key=?");
 
-			_mergeVoS=conn.prepareStatement("merge into dbm (key,_vos) values (?,?)");
+			_mergeVoS=conn.prepareStatement(merge + " dbm (key,_vos) values (?,?)");
 			_getVoS=conn.prepareStatement("select _vos as value from dbm where key=?");
 
-			_mergeBlob=conn.prepareStatement("merge into dbm (key,_blob) values (?,?)");
+			_mergeBlob=conn.prepareStatement(merge + " dbm (key,_blob) values (?,?)");
 			_getBlob=conn.prepareStatement("select _blob as value from dbm where key=?");
 			
-			_mergeInt=conn.prepareStatement("merge into dbm (key,_int) values (?,?)");
+			_mergeInt=conn.prepareStatement(merge +" dbm (key,_int) values (?,?)");
 			_getInt=conn.prepareStatement("select _int as value from dbm where key=?");
 
-			_mergeBoolean=conn.prepareStatement("merge into dbm (key,_boolean) values (?,?)");
+			_mergeBoolean=conn.prepareStatement(merge + " dbm (key,_boolean) values (?,?)");
 			_getBoolean=conn.prepareStatement("select _boolean as value from dbm where key=?");
 			
-			_mergeString=conn.prepareStatement("merge into dbm (key,_string) values (?,?)");
+			_mergeString=conn.prepareStatement(merge + " dbm (key,_string) values (?,?)");
 			_getString=conn.prepareStatement("select _string as value from dbm where key=?");
 
-			_mergeFloat=conn.prepareStatement("merge into dbm (key,_float) values (?,?)");
+			_mergeFloat=conn.prepareStatement(merge + " dbm (key,_float) values (?,?)");
 			_getFloat=conn.prepareStatement("select _float as value from dbm where key=?");
 
-			_mergeLong=conn.prepareStatement("merge into dbm (key,_long) values (?,?)");
+			_mergeLong=conn.prepareStatement(merge + " dbm (key,_long) values (?,?)");
 			_getLong=conn.prepareStatement("select _long as value from dbm where key=?");
 			
-			_mergeDouble=conn.prepareStatement("merge into dbm (key,_double) values (?,?)");
+			_mergeDouble=conn.prepareStatement(merge + " dbm (key,_double) values (?,?)");
 			_getDouble=conn.prepareStatement("select _double as value from dbm where key=?");
 
-			_mergeDate=conn.prepareStatement("merge into dbm (key,_timestamp) values (?,?)");
+			_mergeDate=conn.prepareStatement(merge + " dbm (key,_timestamp) values (?,?)");
 			_getDate=conn.prepareStatement("select _timestamp as value from dbm where key=?");
 			
 			_getObject=conn.prepareStatement("select * from dbm where key=?");
@@ -722,9 +742,11 @@ public class NDbm2 extends NDbmEncDec {
 	
 	private void writeString(String key,String i) throws NDbmException {
 		try {
+			this.begin();
 			_mergeString.setString(1,key);
 			_mergeString.setString(2, i);
 			_mergeString.execute();
+			this.commit();
 		} catch (Exception e) {
 			throw new NDbmException(e);
 		}
@@ -732,9 +754,11 @@ public class NDbm2 extends NDbmEncDec {
 	
 	private void writeFloat(String key,Float i) throws NDbmException {
 		try {
+			this.begin();
 			_mergeFloat.setString(1,key);
 			_mergeFloat.setFloat(2, i);
 			_mergeFloat.execute();
+			this.commit();
 		} catch (Exception e) {
 			throw new NDbmException(e);
 		}
@@ -742,9 +766,11 @@ public class NDbm2 extends NDbmEncDec {
 	
 	private void writeBoolean(String key,Boolean i) throws NDbmException {
 		try {
+			this.begin();
 			_mergeBoolean.setString(1,key);
 			_mergeBoolean.setBoolean(2, i);
 			_mergeBoolean.execute();
+			this.commit();
 		} catch (Exception e) {
 			throw new NDbmException(e);
 		}
@@ -754,9 +780,11 @@ public class NDbm2 extends NDbmEncDec {
 	
 	private void writeDouble(String key,Double i) throws NDbmException {
 		try {
+			this.begin();
 			_mergeDouble.setString(1,key);
 			_mergeDouble.setDouble(2, i);
 			_mergeDouble.execute();
+			this.commit();
 		} catch (Exception e) {
 			throw new NDbmException(e);
 		}
@@ -764,10 +792,12 @@ public class NDbm2 extends NDbmEncDec {
 
 	private void writeDate(String key,Date i) throws NDbmException {
 		try {
+			this.begin();
 			_mergeDate.setString(1,key);
 			Timestamp ts=new Timestamp(i.getTime());
 			_mergeDate.setTimestamp(2, ts);
 			_mergeDate.execute();
+			this.commit();
 		} catch (Exception e) {
 			throw new NDbmException(e);
 		}
@@ -776,9 +806,11 @@ public class NDbm2 extends NDbmEncDec {
 
 	private void writeLong(String key,Long i) throws NDbmException {
 		try {
+			this.begin();
 			_mergeLong.setString(1,key);
 			_mergeLong.setLong(2, i);
 			_mergeLong.execute();
+			this.commit();
 		} catch (Exception e) {
 			throw new NDbmException(e);
 		}
@@ -787,9 +819,11 @@ public class NDbm2 extends NDbmEncDec {
 	
 	private void writeInt(String key,Integer i) throws NDbmException {
 		try {
+			this.begin();
 			_mergeInt.setString(1,key);
 			_mergeInt.setInt(2, i);
 			_mergeInt.execute();
+			this.commit();
 		} catch (Exception e) {
 			throw new NDbmException(e);
 		}
@@ -797,9 +831,11 @@ public class NDbm2 extends NDbmEncDec {
 	
 	private void writeBlob(Blob b) throws NDbmException {
 		try {
+			this.begin();
 			_mergeBin.setString(1, b.key());
 			_mergeBin.setBytes(2,b.getData());
 			_mergeBin.execute();
+			this.commit();
 			//_mergeBin.close();
 		} catch (Exception E) {
 			throw new NDbmException(E);
@@ -808,9 +844,11 @@ public class NDbm2 extends NDbmEncDec {
 	
 	private void writeVofS(Blob b) throws NDbmException {
 		try {
+			this.begin();
 			_mergeVoS.setString(1,b.key());
 			_mergeVoS.setBytes(2, b.getData());
 			_mergeVoS.execute();
+			this.commit();
 		} catch (Exception E) {
 			throw new NDbmException(E);
 		}
@@ -818,9 +856,11 @@ public class NDbm2 extends NDbmEncDec {
 	
 	private void writeBlobStream(String key,InputStream str) throws NDbmException {
 		try {
+			this.begin();
 			_mergeBlob.setString(1, key);
 			_mergeBlob.setBinaryStream(2, str);
 			_mergeBlob.execute();
+			this.commit();
 		} catch (Exception e) {
 			throw new NDbmException(e);
 		}
@@ -828,15 +868,18 @@ public class NDbm2 extends NDbmEncDec {
 	
 	private Blob readBlob(String key) throws NDbmException {
 		try {
+			this.begin();
 			_getBin.setString(1,key);
 			ResultSet set=_getBin.executeQuery();
 			if(set.next()) {
 				byte []bt=set.getBytes("value");
 				set.close();
+				this.commit();
 				//_getBin.close();
 				return new Blob(key,bt,bt.length);
 			} else {
 				set.close();
+				this.commit();
 				//_getBin.close();
 				return null;
 			}
@@ -847,14 +890,17 @@ public class NDbm2 extends NDbmEncDec {
 	
 	private Blob readVofS(String key) throws NDbmException {
 		try {
+			this.begin();
 			_getVoS.setString(1,key);
 			ResultSet set=_getVoS.executeQuery();
 			if(set.next()) {
 				byte []bt=set.getBytes("value");
 				set.close();
+				this.commit();
 				return new Blob(key,bt,bt.length);
 			} else {
 				set.close();
+				this.commit();
 				return null;
 			}
 		} catch (Exception E) {
@@ -864,14 +910,17 @@ public class NDbm2 extends NDbmEncDec {
 	
 	private InputStream readBlobStream(String key) throws NDbmException {
 		try {
+			this.begin();
 			_getBlob.setString(1,key);
 			ResultSet set=_getBlob.executeQuery();
 			if (set.next()) {
 				InputStream bin=set.getBinaryStream("value");
 				set.close();
+				this.commit();
 				return bin;
 			} else {
 				set.close();
+				this.commit();
 				return null;
 			}
 		} catch (Exception e) {
@@ -881,14 +930,17 @@ public class NDbm2 extends NDbmEncDec {
 
 	private Long readLong(String key) throws NDbmException {
 		try {
+			this.begin();
 			_getLong.setString(1,key);
 			ResultSet set=_getLong.executeQuery();
 			if (set.next()) {
 				Long v=set.getLong("value");
 				set.close();
+				this.commit();
 				return v;
 			} else {
 				set.close();
+				this.commit();
 				return null;
 			}
 		} catch (Exception e) {
@@ -898,14 +950,17 @@ public class NDbm2 extends NDbmEncDec {
 
 	private Integer readInt(String key) throws NDbmException {
 		try {
+			this.begin();
 			_getInt.setString(1,key);
 			ResultSet set=_getInt.executeQuery();
 			if (set.next()) {
 				Integer v=set.getInt("value");
 				set.close();
+				this.commit();
 				return v;
 			} else {
 				set.close();
+				this.commit();
 				return null;
 			}
 		} catch (Exception e) {
@@ -915,14 +970,17 @@ public class NDbm2 extends NDbmEncDec {
 	
 	private Float readFloat(String key) throws NDbmException {
 		try {
+			this.begin();
 			_getFloat.setString(1,key);
 			ResultSet set=_getFloat.executeQuery();
 			if (set.next()) {
 				Float v=set.getFloat("value");
 				set.close();
+				this.commit();
 				return v;
 			} else {
 				set.close();
+				this.commit();
 				return null;
 			}
 		} catch (Exception e) {
@@ -932,14 +990,17 @@ public class NDbm2 extends NDbmEncDec {
 	
 	private Double readDouble(String key) throws NDbmException {
 		try {
+			this.begin();
 			_getDouble.setString(1,key);
 			ResultSet set=_getDouble.executeQuery();
 			if (set.next()) {
 				Double v=set.getDouble("value");
 				set.close();
+				this.commit();
 				return v;
 			} else {
 				set.close();
+				this.commit();
 				return null;
 			}
 		} catch (Exception e) {
@@ -949,14 +1010,17 @@ public class NDbm2 extends NDbmEncDec {
 
 	private String readString(String key) throws NDbmException {
 		try {
+			this.begin();
 			_getString.setString(1,key);
 			ResultSet set=_getString.executeQuery();
 			if (set.next()) {
 				String v=set.getString("value");
 				set.close();
+				this.commit();
 				return v;
 			} else {
 				set.close();
+				this.commit();
 				return null;
 			}
 		} catch (Exception e) {
@@ -966,14 +1030,17 @@ public class NDbm2 extends NDbmEncDec {
 
 	private Boolean readBoolean(String key) throws NDbmException {
 		try {
+			this.begin();
 			_getBoolean.setString(1,key);
 			ResultSet set=_getBoolean.executeQuery();
 			if (set.next()) {
 				Boolean v=set.getBoolean("value");
 				set.close();
+				this.commit();
 				return v;
 			} else {
 				set.close();
+				this.commit();
 				return null;
 			}
 		} catch (Exception e) {
@@ -983,14 +1050,17 @@ public class NDbm2 extends NDbmEncDec {
 
 	private Date readDate(String key) throws NDbmException {
 		try {
+			this.begin();
 			_getDate.setString(1,key);
 			ResultSet set=_getDate.executeQuery();
 			if (set.next()) {
 				Timestamp ts=set.getTimestamp("value");
 				Date v=new Date(ts.getTime());
+				this.commit();
 				return v;
 			} else {
 				set.close();
+				this.commit();
 				return null;
 			}
 		} catch (Exception e) {
@@ -1000,51 +1070,79 @@ public class NDbm2 extends NDbmEncDec {
 	
 	private Object readObject(String key) throws NDbmException {
 		try {
+			this.begin();
 			_getObject.setString(1,key);
 			ResultSet set=_getObject.executeQuery();
 			if (set.next()) {
 				byte[] bin=set.getBytes("_bin");
 				if (!set.wasNull()) {
+					set.close();
+					this.commit();
 					return bin;
 				} else {
 					byte[] vos=set.getBytes("_vos");
 					if (!set.wasNull()) {
 						Blob b=new Blob(key,vos,vos.length);
+						set.close();
+						this.commit();
 						return restoreVofS(b);
 					} else {
-						InputStream blob=set.getBinaryStream("_blob");
+						InputStream blob = null;
+						try {
+							blob=set.getBinaryStream("_blob");
+						} catch (NullPointerException e) {
+							//e.printStackTrace();
+						}
 						if (!set.wasNull()) {
+							set.close();
+							this.commit();
 							return blob;
 						} else { 
 							Integer i=set.getInt("_int");
 							if (!set.wasNull()) {
+								set.close();
+								this.commit();
 								return i;
 							} else {
 								Long l=set.getLong("_long");
 								if (!set.wasNull()) {
+									set.close();
+									this.commit();
 									return l;
 								} else {
 									Float f=set.getFloat("_float");
 									if (!set.wasNull()) {
+										set.close();
+										this.commit();
 										return f;
 									} else {
 										Double d=set.getDouble("_double");
 										if (!set.wasNull()) {
+											set.close();
+											this.commit();
 											return d;
 										} else {
 											String s=set.getString("_string");
 											if (!set.wasNull()) {
+												set.close();
+												this.commit();
 												return s;
 											} else {
 												Timestamp ts=set.getTimestamp("_timestamp");
 												if (!set.wasNull()) {
 													Date dt=new Date(ts.getTime());
+													set.close();
+													this.commit();
 													return dt;
 												} else {
 													Boolean b=set.getBoolean("_boolean");
 													if (!set.wasNull()) {
+														set.close();
+														this.commit();
 														return b;
 													} else {
+														set.close();
+														this.commit();
 														return null;
 													}
 												}
@@ -1058,6 +1156,8 @@ public class NDbm2 extends NDbmEncDec {
 					}
 				}
 			} else {
+				set.close();
+				this.commit();
 				return null;
 			}
 		} catch (Exception E) {
@@ -1067,8 +1167,10 @@ public class NDbm2 extends NDbmEncDec {
 
 	private void removeBlob(String key) throws NDbmException {
 		try {
+			this.begin();
 			_delKey.setString(1, key);
 			_delKey.execute();
+			this.commit();
 		} catch (Exception E) {
 			throw new NDbmException(E);
 		}
@@ -1076,12 +1178,14 @@ public class NDbm2 extends NDbmEncDec {
 	
 	private Vector<String> readKeys() throws NDbmException {
 		try {
+			this.begin();
 			ResultSet set=_getkeys.executeQuery();
 			Vector<String> keys=new Vector<String>();
 			while (set.next()) {
 				keys.add(set.getString("key"));
 			}
 			set.close();
+			this.commit();
 			return keys;
 		} catch(Exception E) {
 			throw new NDbmException(E);

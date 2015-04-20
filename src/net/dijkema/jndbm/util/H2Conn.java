@@ -57,12 +57,6 @@ public class H2Conn extends IConn {
 		} catch (Exception E1) {
 			myconn=null;
 			throw new NDbmException(E1);
-			/*if (E1 instanceof SQLException) {
-				SQLException c=(SQLException) E1;
-				if (c.getSQLState().equals("XJ040")) {
-					throw new NDbmAlreadyInUseException();
-				}
-			}*/
 		}
 		return myconn;
 	}
@@ -119,34 +113,6 @@ public class H2Conn extends IConn {
 	public int numOfBackupSteps() {
 		return 5;
 	}
-	
-	/*public void backup(Jzc3Progress p,ZipOutputStream zip,final Directories.EntryMaker em) throws Exception {
-		Directories dir=new Directories();
-		File d=dir.dataDirectory("dbbck");
-		try {
-			p.step();p.message(_.t("Verwijderen mogelijke voorgaande backup"));
-			dir.deleteDirectory(d);
-			p.step();p.message(_.t("Maken backup database"));
-			PreparedStatement stm=conn.prepareStatement("CALL SYSCS_UTIL.SYSCS_BACKUP_DATABASE(?)");
-			stm.setString(1, d.getAbsolutePath());
-			stm.execute();
-			stm.close();
-			p.step();p.message(_.t("Toevoegen database backup aan ZIP bestand"));
-			dir.zip(d,zip,new Directories.EntryMaker() {
-				public ZipEntry makeEntry(File f) {
-					ZipEntry e=em.makeEntry(f);
-					String q=e.getName();
-					//System.out.println("q="+q+", replace="+File.separator+"dbbck");
-					return new ZipEntry(q.replace(File.separator+"dbbck",""));
-				}
-			});
-			p.step();p.message(_.t("Verwijderen tijdelijke bestanden"));
-			dir.deleteDirectory(d);
-			p.step();p.message(_.t("Database backup klaar"));
-		} catch (Exception e) {
-			throw new Exception(String.format(_.t("Kan geen backup maken (%s)"),e.getMessage()));
-		}
-	}*/
 	
 	public H2Conn(File db_location,boolean ro) throws NDbmException {
 		_db_location=db_location;

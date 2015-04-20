@@ -8,9 +8,23 @@ import net.dijkema.jndbm.NDbm2;
 
 public class dbm2spike {
 	public static void main(String [] args) {
+		test(false);	// SQLite
+		test(true);		// H2
+		System.exit(0);
+	}
+		
+	public static void test(boolean h2) {
+
+		String name = "test";
+		if (h2) {
+			NDbm2.setH2(); 
+		} else {
+			NDbm2.setSQLite();
+		}
+		
 		
 		try {
-			File f=new File("test");
+			File f=new File(name);
 
 			// tests to make it work
 			
@@ -105,8 +119,10 @@ public class dbm2spike {
 			
 			System.out.println("test"+testnr++);
 			db=NDbm2.openNDbm(f,false);
+			db.begin();
 			db.putObject("boolean", true);
 			db.putObject("tryit", 98213);
+			db.commit();
 			it=db.iterator(); 
 			while (it.hasNext()) {
 				String key=it.next();
@@ -118,13 +134,20 @@ public class dbm2spike {
 			
 			System.out.println("test"+testnr++);
 			db=NDbm2.openNDbm(f,false);
+			db.begin();
 			int i;
 			for(i=0;i<100;i++) {
 				System.out.print(i+" ");
+				if (i%20 == 0) { System.out.println(""); }
 				db.putInt("key:"+i, i*4);
 			}
+			System.out.println("");;
+			db.commit();
 			it=db.iterator();
+			i = 0;
 			while (it.hasNext()) {
+				i += 1;
+				if (i%20 == 0) { System.out.println(""); }
 				System.out.print(it.next()+" ");
 			}
 			System.out.println();
@@ -169,20 +192,21 @@ public class dbm2spike {
 			
 			db=NDbm2.openNDbm(f,false);
 			int factor=2;
+			db.begin();
 			for(i=0;i<1000;i++) { 
 				System.out.print(i+":"+i*factor+" ");
 				if (i%10==0) { System.out.println(); }
 				db.putInt("key:"+i, i*factor);
 			}
+			db.commit();
 			System.out.println();
 			
 			
 			
 		} catch(Exception e) {
-			System.out.println(e);
+			e.printStackTrace();
 		}
 		
-		System.exit(0);
 	}
 
 }
