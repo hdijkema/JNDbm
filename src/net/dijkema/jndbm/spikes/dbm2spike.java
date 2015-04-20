@@ -8,9 +8,26 @@ import net.dijkema.jndbm.NDbm2;
 
 public class dbm2spike {
 	public static void main(String [] args) {
-		test(false);	// SQLite
-		test(true);		// H2
+		test(true);			// H2
+		convert();
+		test(false);		// SQLite
 		System.exit(0);
+	}
+	
+	public static void convert() {
+		try {
+			String name = "test";
+			File f = new File(name);
+			NDbm2.setH2();
+			NDbm2 dbIn = NDbm2.openNDbm(f, true);
+			NDbm2.setSQLite();
+			NDbm2 dbOut = NDbm2.openNDbm(f, false);
+			dbIn.convertTo(dbOut);
+			dbIn.close();
+			dbOut.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 		
 	public static void test(boolean h2) {

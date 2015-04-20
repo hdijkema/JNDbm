@@ -88,6 +88,19 @@ public class NDbm2 extends NDbmEncDec {
 		return new NDbm2(_base, _readonly, _h2);
 	}
 	
+	public void convertTo(NDbm2 dbTo) throws NDbmException {
+		this.begin();
+		dbTo.begin();
+		Iterator<String> it=this.iterator();
+		while (it.hasNext()) {
+			String key = it.next();
+			Object o = this.getObject(key);
+			dbTo.putObject(key, o);
+		}
+		this.commit();
+		dbTo.commit();
+	}
+	
 	public static void removeDb(File _base) {
 		/*
 		File _meta, _index, _dbase;
