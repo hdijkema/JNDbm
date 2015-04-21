@@ -1,6 +1,9 @@
 package net.dijkema.jndbm;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectOutputStream;
 import java.sql.Connection;
@@ -13,6 +16,8 @@ import java.util.Date;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Vector;
+
+import javax.imageio.ImageIO;
 
 import net.dijkema.jndbm.datastruct.Blob;
 import net.dijkema.jndbm.datastruct.Types;
@@ -248,6 +253,21 @@ public class NDbm2 extends NDbmEncDec {
 		writeBlobStream(key,in);
 	}
 
+	/**
+	 * Writes a blob to NDbm2, using the given a Blob datatype
+	 * 
+	 * @param key
+	 * @param in
+	 * @throws NDbmException
+	 */
+	public void putBlob(String key, Blob data) throws NDbmException {
+		//ByteArrayInputStream bin = new ByteArrayInputStream(data.getData());
+		//writeBlobStream(key, bin);
+		//bin.close();
+		this.writeBlob(key, data);
+	}
+	
+	
 	/**
 	 * Puts a boolean in NDbm2 under the given key (end point function).
 	 * 
@@ -493,16 +513,6 @@ public class NDbm2 extends NDbmEncDec {
 	}
 
 	
-	/*public synchronized Blob getBlob(String key) {
-		try {
-			return readBlob(key);
-		} catch (Exception E) {
-			logger.error(_base + ":" + E.getMessage());
-			logger.fatal(E);
-			return null;
-		}
-	}*/
-
 	/**
 	 * Reads an Integer from NDbm under given key (end point function). Return
 	 * value maybe null.
@@ -526,6 +536,18 @@ public class NDbm2 extends NDbmEncDec {
 	}
 
 
+	/**
+	 * Reads a BLOB from NDbm under the given key. It returns an Blob structure
+	 * the Blob, or null, if the blob was not found.
+	 * @param key
+	 * @return
+	 * @throws NDbmException
+	 */
+	public Blob getBlobData(String key) throws NDbmException {
+		return readBlob(key);
+	}
+	
+	
 	/**
 	 * Reads a Long from NDbm under given key (end point function). Return value
 	 * maybe null.
@@ -843,9 +865,13 @@ public class NDbm2 extends NDbmEncDec {
 	}
 	
 	private void writeBlob(Blob b) throws NDbmException {
+		writeBlob(b.key(), b);
+	}
+
+	private void writeBlob(String key, Blob b) throws NDbmException {
 		try {
 			this.begin();
-			_mergeBin.setString(1, b.key());
+			_mergeBin.setString(1, key);
 			_mergeBin.setBytes(2,b.getData());
 			_mergeBin.execute();
 			this.commit();
@@ -854,7 +880,7 @@ public class NDbm2 extends NDbmEncDec {
 			throw new NDbmException(E);
 		}
 	}
-	
+
 	private void writeVofS(Blob b) throws NDbmException {
 		try {
 			this.begin();
@@ -871,7 +897,19 @@ public class NDbm2 extends NDbmEncDec {
 		try {
 			this.begin();
 			_mergeBlob.setString(1, key);
-			_mergeBlob.setBinaryStream(2, str);
+			if (this._h2) {
+				_mergeBlob.setBinaryStream(2, str);
+			} else {
+				ByteArrayOutputStream B=new ByteArrayOutputStream();
+				byte [] buf = new byte[10240];
+				int len = str.read(buf);
+				while (len >= 0) {
+					B.write(buf, 0, len);
+					len = str.read(buf);
+				}
+				B.close();
+				_mergeBlob.setBytes(2,B.toByteArray());
+			}
 			_mergeBlob.execute();
 			this.commit();
 		} catch (Exception e) {
@@ -1204,6 +1242,7 @@ public class NDbm2 extends NDbmEncDec {
 			throw new NDbmException(E);
 		}
 	}
+
 	
 	
 }
