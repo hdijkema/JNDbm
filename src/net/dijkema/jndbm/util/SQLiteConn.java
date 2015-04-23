@@ -43,7 +43,7 @@ public class SQLiteConn extends IConn {
 			try {
 				SQLiteConfig c = new SQLiteConfig();
 				c.setReadOnly(_readonly);
-				String sqliteurl="jdbc:sqlite:"+dbname+".sqlite";
+				String sqliteurl="jdbc:sqlite:"+dbname+".db";
 				myconn=DriverManager.getConnection(sqliteurl, c.toProperties());
 			} catch (Exception E) {
 				myconn=null;

@@ -57,7 +57,7 @@ public class NDbm2 extends NDbmEncDec {
 	 * @throws NDbmException
 	 */
 	static public NDbm2 openNDbm(File base, boolean readonly) throws NDbmException {
-		File dbbase = new File(base.getAbsolutePath()+((_h2type) ? ".h2" : ".sqlite"));
+		File dbbase = new File(base.getAbsolutePath()+((_h2type) ? ".h2" : ".db"));
 		NDbm2 db=_existingDbms.get(dbbase);
 		if (db==null) {
 			db=new NDbm2(base, readonly, _h2type);
